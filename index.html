@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Lenz's Alibi — The Faraday Case</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ============ CASE SELECT ============ -->
+<main id="menu">
+  <header class="masthead">
+    <div class="stamp">FORENSIC PHYSICS UNIT · FILE 4-EM</div>
+    <h1>Lenz's Alibi</h1>
+    <p class="sub">The Faraday Case</p>
+    <p class="lede">A scientist vanished from a locked lab. Use physics to find who did it.</p>
+  </header>
+  <button id="tutBtn" class="tutcta" type="button"><span class="code">NEW HERE?</span><b>▶ Tutorial</b>
+    <span>Arrows, tips and hints.</span></button>
+  <section id="cases" class="cases"></section>
+  <section class="setup">
+    <label>Case seed <input id="seed" type="text" maxlength="12" spellcheck="false"></label>
+    <button id="reseed" type="button">New seed</button>
+    <label class="check"><input id="guide" type="checkbox"> <span><b>Guide mode</b> — arrows &amp; tips</span></label>
+    <label class="check"><input id="ap" type="checkbox"> <span><b>AP Exam Mode</b> — calculate by hand</span></label>
+    <label class="check"><input id="hq" type="checkbox" checked> <span><b>High detail</b> — untick if laggy</span></label>
+  </section>
+  <footer class="foot">WASD move · E inspect · 1/2/3 tools · Tab case board</footer>
+</main>
+
+<!-- ============ GAME ============ -->
+<div id="game" class="hide">
+  <div id="view"></div>
+  <div id="hud">
+    <div class="hud-tl"><div id="hCase"></div><div id="hMeta"></div></div>
+    <div class="hud-tr"><div id="hFacts"></div><div class="hint">[Tab] case board · [Esc] release mouse</div><div id="tut" class="hide"></div></div>
+    <div id="alert" class="hide"></div>
+    <div id="cross"></div>
+    <div id="prompt" class="hide"></div>
+    <div id="resume" class="hide">Click to look around</div>
+    <div class="hud-bl">
+      <div id="tutTool" class="hide"></div>
+      <div id="tools"></div>
+      <div id="tool"><canvas id="toolCv" width="120" height="120"></canvas><div id="toolTxt"></div></div>
+    </div>
+    <div id="room"></div>
+    <div id="toasts"></div>
+  </div>
+  <div id="overlay" class="hide"><div id="sheet"></div></div>
+</div>
+
+<div id="nogl" class="hide">The 3D engine (three.js) failed to load. This page fetches it from cdnjs — check your internet connection and reload.</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="js/case.js"></script>
+<script src="js/world.js"></script>
+<script src="js/puzzles.js"></script>
+<script src="js/puzzles2.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
