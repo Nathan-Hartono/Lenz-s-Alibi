@@ -48,7 +48,7 @@ Press **H** in game to hide or show the guide.
 ## Ending cutscene and sound
 
 - A correct accusation plays a ~28 s in-engine cutscene before the verdict screen. It shows the Case Board ("CASE SOLVED"), then the hidden panel being unbolted and set aside. Behind it is a dark cavity (or a shaft for the floor panel), drawn through a stencil cut-out in the wall or floor, and the cryo pod slides out of it. Dr. Thorne steps out and shivers. The two-piece blast door then slides open onto a lit corridor, and two officers walk in, cuff the culprit and escort them out. The people are built from jointed parts (knees, elbows, faces, hair) and each suspect has their own look. It works for every panel position and can be skipped.
-- `js/audio.js` makes all sound with the Web Audio API (no audio files). A calm A-minor chord pad plays throughout. A soft heartbeat pulse and a gentle arpeggio grow as you verify clues, during field surges and in the cutscene. Underneath is a very quiet room tone, a low drone near the accelerator, footsteps and the wand hum. There is no crackle or hiss. The music is muffled while a terminal is open.
+- `js/audio.js` makes all sound with the Web Audio API (no audio files). It is a generative dark lab-ambience score with no beat, no loop and no buzz. Smooth drones slowly glide between notes, and overlapping pad swells in A minor sit in a long reverb, under faint distant machinery air, far-off computer chirps, high glints and the odd deep swell. Notes are picked at random, so it never repeats. Clue progress, surges and the ending make it brighter and tenser. The induction wand is a clean tone that rises in pitch near the live wire. Everything is muffled while a terminal is open.
 
 ## Cases
 
