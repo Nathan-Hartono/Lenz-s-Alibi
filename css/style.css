@@ -162,3 +162,14 @@ body.cine #hud, body.cine #buddy { display: none !important; }
 #cine .cfade.on { opacity: 1; }
 #cineSkip { position: absolute; right: 18px; bottom: calc(11vh + 12px); pointer-events: auto; background: rgba(0,0,0,.55); border: 1px solid #3a4a52; color: #9fb0b8; font: 500 12px var(--mono); padding: 6px 12px; cursor: pointer; }
 #cineSkip span { border: 1px solid #3a4a52; padding: 0 5px; margin-left: 4px; }
+
+/* Flux: × hides his speech bubble, clicking him brings it back */
+#buddy .bd-body { pointer-events: auto; cursor: pointer; position: relative; }
+#buddy .bd-body:hover { filter: drop-shadow(0 0 14px rgba(111,255,240,.55)); }
+#buddy .bd-bubble { pointer-events: auto; padding-right: 26px; }
+#buddy .bd-x { position: absolute; top: 4px; right: 5px; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: rgba(29,22,10,.1); color: #6b4a1e; font: 700 14px/20px sans-serif; cursor: pointer; }
+#buddy .bd-x:hover { background: #1d160a; color: #f4ecd8; }
+#buddy.quiet .bd-bubble { display: none; }
+#buddy .bd-new { display: none; position: absolute; top: 14px; right: 18px; font-size: 20px; animation: bdnew 1.2s ease-in-out infinite; pointer-events: none; }
+#buddy.quiet.unread .bd-new { display: block; }
+@keyframes bdnew { 50% { transform: translateY(-5px) scale(1.12); } }

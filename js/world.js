@@ -2,7 +2,7 @@
    Procedural textures, shadowed lighting, reflection probe, dressed rooms, animated props, tutorial guide arrows. */
 (function () {
   'use strict';
-  const W = { paused: true, tool: 'mag', player: { x: 0, z: 4.5, yaw: 0, pitch: 0 }, keys: {}, locked: false, surge: 0, sprayLeft: 14, high: true };
+  const W = { paused: true, tool: 'mag', player: { x: 0, z: 4.5, yaw: 0, pitch: 0 }, keys: {}, locked: false, surge: 0, sprayLeft: 14 };
   let scene, camera, renderer, envTex = null, C = null, last = 0, el, T = 0;
   let colliders = [], inter = [], carts = [], filings = [], conduit = null, anim = [], hand = {}, parent = null, shadows = true;
   const M = {}, TX = {};
@@ -153,7 +153,7 @@
   // ------------------------------------------------------------------ scene
   function build() {
     scene = new THREE.Scene(); scene.background = new THREE.Color(0x06090b); scene.fog = new THREE.FogExp2(0x070b0e, 0.026); scene.environment = envTex;
-    colliders = []; inter = []; carts = []; filings = []; anim = []; W.sprayLeft = 14; shadows = W.high;
+    colliders = []; inter = []; carts = []; filings = []; anim = []; W.sprayLeft = 14; shadows = false; // light mode only: no shadow maps
     scene.add(new THREE.AmbientLight(0x8fa6b8, 0.2)); scene.add(new THREE.HemisphereLight(0xa8c4d6, 0x191410, 0.14));
 
     // ---- shell
@@ -603,10 +603,10 @@
   }
   W.init = function (container) {
     el = container; renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-    renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
+    renderer.shadowMap.enabled = false; renderer.shadowMap.type = THREE.PCFSoftShadowMap; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.25;
     el.appendChild(renderer.domElement); camera = new THREE.PerspectiveCamera(72, 1, 0.05, 80); camera.rotation.order = 'YXZ';
     textures(); mats(); envTex = makeEnv(); drawScreen(0);
-    const resize = () => { const w = el.clientWidth || window.innerWidth, h = el.clientHeight || window.innerHeight, pr = W.high ? Math.min(1.5, window.devicePixelRatio || 1) : 1;
+    const resize = () => { const w = el.clientWidth || window.innerWidth, h = el.clientHeight || window.innerHeight, pr = 1; // fixed 1x resolution
       renderer.setPixelRatio(pr); renderer.setSize(w, h); camera.aspect = w / h; camera.updateProjectionMatrix(); };
     window.addEventListener('resize', resize); W.resize = resize;
     const cv = renderer.domElement; let drag = false;

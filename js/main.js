@@ -17,7 +17,6 @@
       b.onclick = () => start(d.id); $('cases').appendChild(b);
     });
     if (!$('seed').value) $('seed').value = newSeed();
-    try { if (localStorage.getItem('lenz.hq') === '0') $('hq').checked = false; } catch (e) { /* storage unavailable */ }
     $('reseed').onclick = () => { $('seed').value = newSeed(); };
     $('tutBtn').onclick = () => start(1, null, { guide: true });
     try { if (localStorage.getItem('lenz.guide') === '1') $('guide').checked = true; } catch (e) { /* storage unavailable */ }
@@ -31,7 +30,6 @@
     G.guide = opts && opts.guide != null ? opts.guide : $('guide').checked;
     G.C = generateCase(id, seed, $('ap').checked); G.t = 0; G.surgeIdx = 0; G.wandNoted = false; G.won = false;
     $('menu').classList.add('hide'); $('game').classList.remove('hide');
-    World.high = $('hq').checked; try { localStorage.setItem('lenz.hq', World.high ? '1' : '0'); } catch (e) { /* storage unavailable */ }
     if (!G.inited) { World.init($('view')); G.inited = true; World.onFrame = frame; World.onSpray = onSpray; World.onMag = onMag; }
     World.load(G.C); World.visible = true; World.tool = 'mag';
     $('hCase').textContent = G.C.def.code + ' — ' + G.C.def.title; hud();
@@ -99,7 +97,7 @@
       <p class="note">Wrong answers = strike.${d.events ? ' Expect field surges.' : ''}</p>
       <h3>Controls</h3>
       <div class="keys"><span><b>WASD</b> move · <b>Shift</b> run</span><span><b>Mouse</b> look</span><span><b>E</b> inspect</span>
-      <span><b>1 2 3</b> tools</span><span><b>Tab</b> case board</span><span><b>Esc</b> close</span><span><b>M</b> sound on/off</span></div>
+      <span><b>1 2 3</b> tools</span><span><b>Tab</b> case board</span><span><b>Esc</b> close</span><span><b>M</b> sound on/off</span>${G.guide ? '<span><b>F</b> show/hide Flux tips</span>' : ''}</div>
       <div class="row" style="margin-top:20px;max-width:360px"><button class="go" id="bGo">Start</button><button id="bBack">Back</button></div></div>`);
     $('bGo').onclick = () => { closeSheet(); const cv = document.querySelector('#view canvas'); try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* drag-look fallback */ } };
     $('bBack').onclick = toMenu;
@@ -219,6 +217,7 @@
   window.addEventListener('keydown', e => {
     if (!G.C || $('game').classList.contains('hide')) return;
     if (G.cine) { if (['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); skipCine(); } return; }
+    if (e.code === 'KeyF' && !(e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) { Tutorial.toggleBubble(); return; }
     if (e.code === 'KeyM' && !(e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) { const on = LabAudio.toggle(); $('snd').checked = on; toast(on ? '🔊 Sound on' : '🔇 Sound off', 'info'); return; }
     if (e.code === 'Escape') { if (G.sheet === 'term' || G.sheet === 'board') closeSheet(); return; }
     if (e.code === 'Tab') { if (!G.sheet) { e.preventDefault(); openBoard(); } else if (G.sheet === 'board') { e.preventDefault(); closeSheet(); } return; }

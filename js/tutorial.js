@@ -166,7 +166,11 @@
   const TOOL_LINES = { mag: 'Magnetometer! <b>Click</b> to log a reading — it goes on the Survey map.', spray: 'Filing spray! Look at the floor and <b>click</b>. The pattern goes on the map too.', wand: 'Induction wand! It buzzes near hidden live wires — you\'ll trace one later.' };
   function buddyInit() {
     if (B.el) return; B.el = $('buddy'); if (!B.el) return;
-    B.el.innerHTML = '<div class="bd-body"><canvas class="bd-cv"></canvas></div><div class="bd-bubble"><div class="bd-name">FLUX</div><div class="bd-text"></div></div>';
+    B.el.innerHTML = '<div class="bd-body" title="Click Flux to show his tips"><canvas class="bd-cv"></canvas><div class="bd-new">💬</div></div>'
+      + '<div class="bd-bubble"><button type="button" class="bd-x" title="Hide tips (click Flux to bring them back) [F]">×</button><div class="bd-name">FLUX</div><div class="bd-text"></div></div>';
+    // the × hides the speech bubble; clicking Flux himself brings it back
+    B.el.querySelector('.bd-x').onclick = e => { e.stopPropagation(); bubble(false); };
+    B.el.querySelector('.bd-body').onclick = e => { e.stopPropagation(); bubble(true); };
     B.sprite = FluxSprite(B.el.querySelector('canvas'));
     let last = performance.now();
     (function loop(now) { const dt = Math.min(0.1, (now - last) / 1000); last = now; if (!B.el.classList.contains('hide')) B.sprite.draw(now / 1000, dt); requestAnimationFrame(loop); })(last);
@@ -176,12 +180,17 @@
       seen.forEach(st => { const txt = st.textContent.trim(); if (!txt) return; if (st.classList.contains('bad')) fail(); else if (st.classList.contains('ok')) say(pickOne(['Yes!! Great work, detective! 🎉', 'Nailed it! 🎉', 'Brilliant deduction! 🎉']), 5, 'wow'); });
     }).observe($('sheet'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
   }
+  function bubble(open) {
+    if (!B.el) return; B.closed = !open; B.el.classList.toggle('quiet', B.closed); B.el.classList.remove('unread');
+    if (open && B.sprite) { B.sprite.talk(); const bub = B.el.querySelector('.bd-bubble'); bub.classList.remove('bd-pop'); void bub.offsetWidth; bub.classList.add('bd-pop'); }
+  }
+  function toggleBubble() { if (T.on && !T.hidden) bubble(!!B.closed); }
   const pickOne = a => a[Math.floor(Math.random() * a.length)];
   function say(html, hold, mood) {
     if (!B.el) return; B.hold = hold || 0;
     B.el.classList.remove('wow', 'oops'); if (mood === 'wow' || mood === 'oops') B.el.classList.add(mood);
     if (B.sprite) B.sprite.setMood(mood);
-    if (html === B.text) return; B.text = html; if (B.sprite) B.sprite.talk();
+    if (html === B.text) return; B.text = html; if (B.closed) B.el.classList.add('unread'); else if (B.sprite) B.sprite.talk();
     const t = B.el.querySelector('.bd-text'); t.innerHTML = html;
     const bub = B.el.querySelector('.bd-bubble'); bub.classList.remove('bd-pop'); void bub.offsetWidth; bub.classList.add('bd-pop');
   }
@@ -315,5 +324,5 @@
     return near.active ? '' : '<div class="tut-p">Not used in this case</div>';
   }
 
-  window.Tutorial = { begin, stop, finish, toggle, frame, onTool, onSheet, promptExtra, get on() { return T.on; }, _astar: (a, b, c, d) => (grid || buildGrid(), astar(a, b, c, d)) };
+  window.Tutorial = { begin, stop, finish, toggle, toggleBubble, frame, onTool, onSheet, promptExtra, get on() { return T.on; }, _astar: (a, b, c, d) => (grid || buildGrid(), astar(a, b, c, d)) };
 })();

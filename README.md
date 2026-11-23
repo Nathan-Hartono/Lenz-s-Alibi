@@ -34,6 +34,7 @@ Press **H** in game to hide or show the guide.
 | Click (with a tool held) | magnetometer: log a reading to the Survey map · spray: drop filings (also mapped) |
 | Tab | case board and accusation |
 | H | hide / show the tutorial guide |
+| F (or the × / click Flux) | hide / show Flux's speech bubble |
 | M | sound on / off (also a Sound checkbox on the case menu) |
 | Space / Enter / Esc | skip the ending cutscene |
 | Esc | close a terminal, release the mouse |
