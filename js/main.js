@@ -21,22 +21,24 @@
     $('reseed').onclick = () => { $('seed').value = newSeed(); };
     $('tutBtn').onclick = () => start(1, null, { guide: true });
     try { if (localStorage.getItem('lenz.guide') === '1') $('guide').checked = true; } catch (e) { /* storage unavailable */ }
+    $('snd').checked = LabAudio.on; $('snd').onchange = () => { LabAudio.setOn($('snd').checked); };
     $('guide').onchange = () => { try { localStorage.setItem('lenz.guide', $('guide').checked ? '1' : '0'); } catch (e) { /* storage unavailable */ } };
   }
   function start(id, seed, opts) {
     if (!window.THREE) { $('nogl').classList.remove('hide'); return; }
+    LabAudio.init();
     seed = (seed || $('seed').value || newSeed()).toUpperCase().trim(); $('seed').value = seed;
     G.guide = opts && opts.guide != null ? opts.guide : $('guide').checked;
     G.C = generateCase(id, seed, $('ap').checked); G.t = 0; G.surgeIdx = 0; G.wandNoted = false; G.won = false;
     $('menu').classList.add('hide'); $('game').classList.remove('hide');
     World.high = $('hq').checked; try { localStorage.setItem('lenz.hq', World.high ? '1' : '0'); } catch (e) { /* storage unavailable */ }
-    if (!G.inited) { World.init($('view')); G.inited = true; World.onFrame = frame; World.onSpray = ok => { if (!ok) toast(World.sprayLeft ? 'Aim at the floor.' : 'Spray empty.', 'info'); }; }
+    if (!G.inited) { World.init($('view')); G.inited = true; World.onFrame = frame; World.onSpray = onSpray; World.onMag = onMag; }
     World.load(G.C); World.visible = true; World.tool = 'mag';
     $('hCase').textContent = G.C.def.code + ' — ' + G.C.def.title; hud();
     if (G.guide) Tutorial.begin(G, Object.assign({ board: 'Case Board' }, STATION)); else Tutorial.stop();
     briefing();
   }
-  function toMenu() { Tutorial.stop(); closeSheet(true); World.visible = false; World.unlock(); $('game').classList.add('hide'); $('menu').classList.remove('hide'); $('seed').value = newSeed(); }
+  function toMenu() { G.cine = false; document.body.classList.remove('cine'); $('cine').classList.add('hide'); Tutorial.stop(); closeSheet(true); World.visible = false; World.unlock(); $('game').classList.add('hide'); $('menu').classList.remove('hide'); $('seed').value = newSeed(); }
 
   // ---------------- overlay plumbing ----------------
   function openSheet(kind, html) {
@@ -53,7 +55,7 @@
     const d = document.createElement('div'); d.className = 'toast ' + (kind || ''); d.textContent = msg; $('toasts').appendChild(d);
     setTimeout(() => d.remove(), 6500);
   }
-  function strike() { G.C.strikes++; hud(); }
+  function strike() { G.C.strikes++; hud(); LabAudio.sfx('bad'); }
   function total() { return G.C.def.puzzles.length + 1; }
   function solvedCount() { return ['survey'].concat(G.C.def.puzzles).filter(id => (G.C.state[id] || {}).solved).length; }
   function hud() {
@@ -61,6 +63,29 @@
     $('hMeta').textContent = 'seed ' + G.C.seed + (G.C.ap ? ' · AP MODE' : '') + ' · ' + m + ':' + (s < 10 ? '0' : '') + s + ' · strikes ' + G.C.strikes;
     $('hFacts').textContent = 'Instruments verified ' + solvedCount() + ' / ' + total();
     $('tools').innerHTML = TOOLS.map(t => `<span class="${World.tool === t[0] ? 'on' : ''}">${t[1]}</span>`).join('');
+  }
+
+  // ---------------- field data for the Survey Table (only what you measure with your tools) ----------------
+  function surveyState() { return G.C.state.survey || (G.C.state.survey = { samples: [], cleared: [], sub: false }); }
+  function onMag() {
+    if (World.surge > 0) { toast('Surge! Reading unstable — wait.', 'info'); return; }
+    const S = surveyState(), p = World.player;
+    if (S.samples.some(q => q.kind !== 'fil' && Math.hypot(q.x - p.x, q.z - p.z) < 0.6)) { toast('Already logged here — move on.', 'info'); return; }
+    S.samples.push({ x: p.x, z: p.z }); World.pin(p.x, p.z); LabAudio.sfx('log');
+    const n = S.samples.filter(q => q.kind !== 'fil').length; toast('📍 Reading ' + n + ' logged to the Survey map');
+  }
+  function onSpray(res) {
+    if (!res) { toast(World.sprayLeft ? 'Aim at the floor.' : 'Spray empty.', 'info'); return; }
+    LabAudio.sfx('spray'); surveyState().samples.push({ x: res.x, z: res.z, kind: 'fil' }); toast('Filing pattern added to the Survey map');
+  }
+  // the maglock's last step happens out in the lab: trace the live conduit with the induction wand
+  function checkTrace() {
+    const P = G.C.puzzles.ampere, S = G.C.state.ampere; if (!P || !S || S.stage !== 4 || S.solved || World.tool !== 'wand') return;
+    const e = World.traceEnd(); if (!e || e.d > 1.8 || World.wandHere() < 0.45) return;
+    const w = P.wires.find(x => x.id === P.tap); S.solved = true; S.stage = 5;
+    [ 'Maglock: mains never cut. The ' + P.Il.toFixed(1) + ' A lock was neutralised by a ' + P.Ic.toFixed(1) + ' A counter-solenoid (B = μ₀nI cancelled).',
+      'Wand trace: conduit ' + w.tag + ' runs to the ' + w.name.toUpperCase() + ' — the counter-current came from there.' ].forEach(f => G.C.facts.push({ src: 'Maglock Conduit Panel', text: f }));
+    hud(); LabAudio.sfx('ok'); toast('✔ Traced ' + w.tag + ' to the ' + w.name + '! Fact added (' + solvedCount() + '/' + total() + ')');
   }
 
   // ---------------- briefing ----------------
@@ -74,7 +99,7 @@
       <p class="note">Wrong answers = strike.${d.events ? ' Expect field surges.' : ''}</p>
       <h3>Controls</h3>
       <div class="keys"><span><b>WASD</b> move · <b>Shift</b> run</span><span><b>Mouse</b> look</span><span><b>E</b> inspect</span>
-      <span><b>1 2 3</b> tools</span><span><b>Tab</b> case board</span><span><b>Esc</b> close</span></div>
+      <span><b>1 2 3</b> tools</span><span><b>Tab</b> case board</span><span><b>Esc</b> close</span><span><b>M</b> sound on/off</span></div>
       <div class="row" style="margin-top:20px;max-width:360px"><button class="go" id="bGo">Start</button><button id="bBack">Back</button></div></div>`);
     $('bGo').onclick = () => { closeSheet(); const cv = document.querySelector('#view canvas'); try { const p = cv.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) { /* drag-look fallback */ } };
     $('bBack').onclick = toMenu;
@@ -83,7 +108,7 @@
   // ---------------- terminals ----------------
   function openTerminal(id) {
     const Pz = Puzzles[id], C = G.C, S = C.state[id] || (C.state[id] = {});
-    openSheet('term', `<div class="sheet-h"><h2>${Pz.title}</h2><span class="law">${Pz.law}</span><span class="tagok" id="tagok">${S.solved ? '✔ VERIFIED' : ''}</span><button id="xClose">Close [Esc]</button></div>
+    LabAudio.sfx('open'); openSheet('term', `<div class="sheet-h"><h2>${Pz.title}</h2><span class="law">${Pz.law}</span><span class="tagok" id="tagok">${S.solved ? '✔ VERIFIED' : ''}</span><button id="xClose">Close [Esc]</button></div>
       <div class="sheet-b"><div class="left"></div><div class="right"></div></div>`);
     const body = $('sheet');
     Pz.open({
@@ -92,7 +117,7 @@
       solve(facts) {
         if (S.solved) return; S.solved = true;
         facts.forEach(f => C.facts.push({ src: Pz.title, text: f }));
-        const t = $('tagok'); if (t) t.textContent = '✔ VERIFIED'; hud();
+        const t = $('tagok'); if (t) t.textContent = '✔ VERIFIED'; hud(); LabAudio.sfx('ok');
         toast('✔ Fact added (' + solvedCount() + '/' + total() + ')');
       }
     });
@@ -121,14 +146,29 @@
       save(); const claims = [A.who === C.culpritId, A.where === C.hunt.target].concat(C.methods.map((m, i) => A.m[i] === m.answer));
       if ([A.who, A.where].concat(A.m).some(v => !v)) { $('qStat').className = 'status bad'; $('qStat').textContent = 'Fill in every line.'; return; }
       const bad = claims.filter(c => !c).length;
-      if (!bad) return verdict();
+      if (!bad) return ending();
       strike(); $('qStat').className = 'status bad'; $('qStat').textContent = 'Wrong: ' + bad + ' of ' + claims.length + ' answers.';
     };
   }
+  // ---------------- ending cutscene ----------------
+  function ending() {
+    const C = G.C, who = C.suspects.find(s => s.id === C.culpritId), pan = LAB.PANELS.find(p => p.id === C.hunt.target);
+    G.won = true; G.cine = true; closeSheet(true); World.unlock(); $('alert').classList.add('hide'); $('prompt').classList.add('hide');
+    document.body.classList.add('cine'); const el = $('cine'); el.classList.remove('hide'); el.querySelector('.cfade').classList.remove('on');
+    const cap = (title, sub, color) => { const c = el.querySelector('.ccap'); c.classList.remove('in'); void c.offsetWidth;
+      c.querySelector('.ct').textContent = title; c.querySelector('.ct').style.color = color || ''; c.querySelector('.cs').textContent = sub || ''; c.classList.add('in'); };
+    const summary = C.methods.map(q => q.options.find(o => o.v === q.answer).label).join(' · ');
+    G.cs = World.cutscene({ panel: pan, culprit: { id: who.id, name: who.name, role: who.role, color: who.color }, summary }, {
+      caption: cap, sfx: n => LabAudio.sfx(n), fade: on => el.querySelector('.cfade').classList.toggle('on', on),
+      done() { G.cine = false; el.classList.add('hide'); document.body.classList.remove('cine'); verdict(); }
+    });
+  }
+  function skipCine() { if (G.cine && World.skipCutscene) World.skipCutscene(); }
+
   function verdict() {
     const C = G.C, who = C.suspects.find(s => s.id === C.culpritId), pan = LAB.PANELS.find(p => p.id === C.hunt.target);
     const rank = C.strikes === 0 ? 'Chief Forensic Physicist' : C.strikes <= 2 ? 'Senior Investigator' : C.strikes <= 5 ? 'Consulting Detective' : 'Consultant, on probation';
-    const m = Math.floor(G.t / 60), s = Math.floor(G.t % 60); G.won = true; Tutorial.stop(); $('alert').classList.add('hide'); $('prompt').classList.add('hide');
+    const m = Math.floor(G.t / 60), s = Math.floor(G.t % 60); G.won = true; Tutorial.finish(); $('alert').classList.add('hide'); $('prompt').classList.add('hide');
     openSheet('verdict', `<div class="verdict"><div class="stamp" style="color:var(--green);border-color:var(--green)">CASE CLOSED</div><h2>${who.name}</h2><div class="rank">${who.role} · charged</div>
       <p>${C.methods.map(q => q.options.find(o => o.v === q.answer).label + '.').join(' ')} The containment pod was recovered from behind panel ${pan.id} (${pan.where}). Dr. Thorne is alive, cold, and furious.</p>
       <p>${C.facts.length} physics facts entered in evidence · ${C.strikes} strike${C.strikes === 1 ? '' : 's'} · ${m}:${s < 10 ? '0' : ''}${s} · seed ${C.seed}${C.ap ? ' · AP Exam Mode' : ''}</p>
@@ -140,9 +180,12 @@
 
   // ---------------- per-frame HUD + events ----------------
   function frame(dt) {
-    const C = G.C; if (!C || G.won) return;
+    const C = G.C;
+    if (C) { const p = World.player; LabAudio.update(dt, { game: !$('game').classList.contains('hide'), sheet: !!G.sheet, cine: !!G.cine, x: p.x, z: p.z, bob: World.bob, moving: World.moving && !World.paused, run: !!World.keys.ShiftLeft,
+      tool: World.tool, wand: World.tool === 'wand' ? World.wandHere() : 0, surge: World.surge, progress: solvedCount() / total() }); }
+    if (!C || G.won) return;
     if (G.sheet !== 'brief') G.t += dt;
-    if (C.surges[G.surgeIdx] != null && G.t > C.surges[G.surgeIdx]) { G.surgeIdx++; World.startSurge(7); G.alertT = 7; $('alert').textContent = '⚠ FIELD SURGE'; $('alert').classList.remove('hide'); }
+    if (C.surges[G.surgeIdx] != null && G.t > C.surges[G.surgeIdx]) { G.surgeIdx++; World.startSurge(7); LabAudio.sfx('surge'); G.alertT = 7; $('alert').textContent = '⚠ FIELD SURGE'; $('alert').classList.remove('hide'); }
     if (G.alertT > 0) { G.alertT -= dt; if (G.alertT <= 0) $('alert').classList.add('hide'); }
     if ((G.hudT = (G.hudT || 0) + dt) > 0.5) { G.hudT = 0; hud(); }
     const near = G.sheet ? null : World.nearest(), pr = $('prompt');
@@ -150,7 +193,7 @@
     Tutorial.frame(dt);
     $('resume').classList.toggle('hide', !!G.sheet || World.locked);
     $('room').textContent = World.roomName();
-    drawTool();
+    checkTrace(); drawTool();
   }
   function drawTool() {
     const cv = $('toolCv'), g = cv.getContext('2d'), p = World.player, txt = $('toolTxt'); g.clearRect(0, 0, 120, 120);
@@ -161,13 +204,13 @@
       if (G.C.ap) { g.fillStyle = '#5c6a72'; g.font = '11px monospace'; g.textAlign = 'center'; g.fillText('NEEDLE', 60, 56); g.fillText('LOCKED', 60, 72); }
       else { UI.arrow(g, 60 - r * 40, 60 + f * 40, r * 80, -f * 80, '#5fe0d0', 3); g.fillStyle = '#e0483c'; g.beginPath(); g.arc(60 + r * 40, 60 - f * 40, 5, 0, 6.283); g.fill(); }
       const hd = ((Math.round(-p.yaw * 180 / Math.PI) % 360) + 360) % 360;
-      txt.innerHTML = 'MAGNETOMETER<br><b>' + m.toFixed(m < 100 ? 2 : 0) + ' µT</b><br>B<sub>E</sub> ' + b.bx.toFixed(1) + ' · B<sub>S</sub> ' + b.bz.toFixed(1) + '<br>pos (' + p.x.toFixed(1) + ' E, ' + p.z.toFixed(1) + ' S) · hdg ' + hd + '°';
+      txt.innerHTML = 'MAGNETOMETER<br><b>' + m.toFixed(m < 100 ? 2 : 0) + ' µT</b><br>B<sub>E</sub> ' + b.bx.toFixed(1) + ' · B<sub>S</sub> ' + b.bz.toFixed(1) + '<br>pos (' + p.x.toFixed(1) + ' E, ' + p.z.toFixed(1) + ' S) · hdg ' + hd + '°<br><b>Click</b> = log reading';
     } else if (World.tool === 'spray') {
       g.fillStyle = '#d7e0e4'; for (let i = 0; i < 40; i++) { const a = i * 2.4, r = 6 + i * 1.1; g.fillRect(60 + Math.cos(a) * r, 60 + Math.sin(a) * r, 5, 1.5); }
-      txt.innerHTML = 'FILING SPRAY<br><b>' + World.sprayLeft + ' left</b><br>Click the floor.';
+      txt.innerHTML = 'FILING SPRAY<br><b>' + World.sprayLeft + ' left</b><br>Click the floor.<br>Maps field direction.';
     } else {
       const v = World.wandHere(); g.fillStyle = '#081014'; g.fillRect(40, 14, 40, 92); g.fillStyle = v > 0.7 ? '#ff5a4d' : '#ffb347'; g.fillRect(40, 106 - 92 * v, 40, 92 * v);
-      txt.innerHTML = 'INDUCTION WAND<br><b>' + (v * 100).toFixed(0) + '%</b><br>' + (v > 0.7 ? 'Live wire here!' : 'Sweep walls.');
+      txt.innerHTML = 'INDUCTION WAND<br><b>' + (v * 100).toFixed(0) + '%</b><br>' + (v > 0.7 ? 'Live wire here!' : 'Sweep walls.') + ((G.C.state.ampere || {}).stage === 4 ? '<br>Follow it to its outlet.' : '');
       if (v > 0.85 && !G.wandNoted) { G.wandNoted = true; toast('Live wire in this wall — follow it.', 'info'); }
     }
   }
@@ -175,6 +218,8 @@
   // ---------------- keys ----------------
   window.addEventListener('keydown', e => {
     if (!G.C || $('game').classList.contains('hide')) return;
+    if (G.cine) { if (['Space', 'Enter', 'Escape'].includes(e.code)) { e.preventDefault(); skipCine(); } return; }
+    if (e.code === 'KeyM' && !(e.target && /INPUT|SELECT|TEXTAREA/.test(e.target.tagName))) { const on = LabAudio.toggle(); $('snd').checked = on; toast(on ? '🔊 Sound on' : '🔇 Sound off', 'info'); return; }
     if (e.code === 'Escape') { if (G.sheet === 'term' || G.sheet === 'board') closeSheet(); return; }
     if (e.code === 'Tab') { if (!G.sheet) { e.preventDefault(); openBoard(); } else if (G.sheet === 'board') { e.preventDefault(); closeSheet(); } return; }
     if (G.sheet) return;
@@ -185,6 +230,7 @@
   let lastT = 0;
   (function tick(ts) { const dt = Math.min(0.05, (ts - lastT) / 1000 || 0); lastT = ts; G.loops.forEach(f => f(dt)); requestAnimationFrame(tick); })(0);
 
-  window.GAME = G; window.GAME_API = { start, openTerminal, openBoard, closeSheet, toast };
+  $('cineSkip').onclick = skipCine;
+  window.GAME = G; window.GAME_API = { start, openTerminal, openBoard, closeSheet, toast, ending };
   menu();
 })();

@@ -135,7 +135,7 @@
           const x = wx(w), y = wy(w), feed = w.kind === 'feed';
           g.fillStyle = '#141d22'; g.strokeStyle = feed ? COL.red : '#d07a3a'; g.lineWidth = 3; g.beginPath(); g.arc(x, y, 13, 0, 6.283); g.fill(); g.stroke();
           g.fillStyle = COL.text; g.font = 'bold 12px "IBM Plex Mono", monospace'; g.textAlign = 'center'; g.fillText(w.tag, x, y + 4);
-          g.font = '10px "IBM Plex Mono", monospace'; g.fillStyle = feed ? COL.red : COL.dim; g.fillText(feed ? 'MAGLOCK FEED' : w.name.replace(' bench outlet', '').replace(' service outlet', ''), x, y + 29);
+          g.font = '10px "IBM Plex Mono", monospace'; g.fillStyle = feed ? COL.red : COL.dim; g.fillText(feed ? 'MAGLOCK FEED' : 'into wall →', x, y + 29);
         });
         if (lasso) { g.strokeStyle = COL.amber; g.lineWidth = 2; g.setLineDash([7, 5]); g.strokeRect(lasso.x1, lasso.y1, lasso.x2 - lasso.x1, lasso.y2 - lasso.y1); g.setLineDash([]);
           g.fillStyle = COL.amber; g.font = '11px "IBM Plex Mono", monospace'; g.textAlign = 'left'; g.fillText('Ampèrian loop ↺', Math.min(lasso.x1, lasso.x2) + 4, Math.min(lasso.y1, lasso.y2) - 5); }
@@ -150,7 +150,7 @@
       function panel() {
         const st = S.stage, feed = P.wires.find(w => w.kind === 'feed');
         let h = `<p class="brief">The lock never lost power. How was it opened?</p><p class="note">⊙ out = + · μ₀ = 1.2566 µT·m/A</p>
-          <div class="read" id="aLoop"></div><div class="steps"><span class="${st > 1 ? 'done' : 'cur'}">1 Feed current</span><span class="${st > 2 ? 'done' : st === 2 ? 'cur' : ''}">2 Cancel field</span><span class="${st > 3 ? 'done' : st === 3 ? 'cur' : ''}">3 Trace supply</span></div>`;
+          <div class="read" id="aLoop"></div><div class="steps"><span class="${st > 1 ? 'done' : 'cur'}">1 Feed current</span><span class="${st > 2 ? 'done' : st === 2 ? 'cur' : ''}">2 Cancel field</span><span class="${st > 3 ? 'done' : st === 3 ? 'cur' : ''}">3 Find wire</span><span class="${st > 4 ? 'done' : st === 4 ? 'cur' : ''}">4 Wand trace</span></div>`;
         if (st === 1) h += `<label>Current in the MAGLOCK FEED (${feed.tag})</label><div class="row"><input type="number" id="aI" step="0.1" placeholder="A"><select id="aD"><option value="1">⊙ out</option><option value="-1">⊗ in</option></select></div><button class="go" id="aGo">Confirm feed current</button>`;
         if (st === 2) h += `<table class="kv"><tr><td>Maglock winding n</td><td>${P.nL} turns/m</td></tr><tr><td>Maglock current</td><td>${P.Il.toFixed(1)} A</td></tr><tr><td>Portable solenoid n</td><td>${P.nC} turns/m</td></tr>
           ${P.drift ? '<tr><td>Thermal drift</td><td id="aK"></td></tr>' : ''}</table>
@@ -158,8 +158,10 @@
           <label>Counter-solenoid current (A)</label><div class="row"><input type="number" id="aC" step="0.01" min="0" value="${S.ic || ''}"><select id="aP"><option value="-1">Opposing</option><option value="1">Aiding</option></select></div>
           <div class="read" id="aB"></div><button class="go" id="aGo">Test bypass</button>`;
         if (st === 3) h += `<p class="note">Which wire carries <b>${P.Ic.toFixed(1)} A</b>?</p>
-          <label>Supply circuit</label><select id="aS">${P.wires.filter(w => w.kind === 'circuit').map(w => `<option value="${w.id}">${w.tag} — ${w.name}</option>`).join('')}</select><button class="go" id="aGo">Confirm supply</button>`;
-        if (st > 3) h += '<p class="note">Done ✔</p>';
+          <label>Supply wire</label><select id="aS">${P.wires.filter(w => w.kind === 'circuit').map(w => `<option value="${w.id}">${w.tag}</option>`).join('')}</select><button class="go" id="aGo">Confirm wire</button>`;
+        if (st === 4) h += `<p class="note warn">${P.wires.find(x => x.id === P.tap).tag} disappears into the wall. Where does it go?</p>
+          <p class="note">Close this panel, hold the <b>induction wand [3]</b> and follow the buzz along the walls to the outlet at the end.</p>`;
+        if (st > 4) h += '<p class="note">Done ✔</p>';
         ctx.right.innerHTML = h + '<div class="status" id="aStat"></div>'; readout();
         const $ = id => ctx.right.querySelector('#' + id), stat = $('aStat'), go = $('aGo'); if (!go) return;
         if (st === 2) $('aC').oninput = live;
@@ -172,9 +174,7 @@
             if (Math.abs(Bl + Bc) / Bl < 0.015) { S.stage = 3; panel(); }
             else UI.status(stat, 'Not cancelled' + (ctx.ap ? '.' : ' (' + (Math.abs(Bl + Bc) / Bl * 100).toFixed(1) + '% left).'), 'bad');
           } else if (st === 3) {
-            if ($('aS').value === P.tap) { S.stage = 4; const w = P.wires.find(x => x.id === P.tap); panel();
-              ctx.solve(['Maglock: mains never cut. The ' + P.Il.toFixed(1) + ' A lock was neutralised by a ' + P.Ic.toFixed(1) + ' A counter-solenoid (B = μ₀nI cancelled).',
-                'Maglock: the counter-current was drawn from conduit ' + w.tag + ' — the ' + w.name.toUpperCase() + '.']); }
+            if ($('aS').value === P.tap) { S.stage = 4; panel(); UI.status(ctx.right.querySelector('#aStat'), 'Right wire! Now trace it with the wand.', 'ok'); }
             else { ctx.strike(); UI.status(stat, 'Wrong wire.', 'bad'); }
           }
         };

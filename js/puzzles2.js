@@ -136,22 +136,23 @@
   Puzzles.survey = {
     title: 'Field Survey Table', law: 'Superposition  —  B_net = Σ B_i   (dipole: B ∝ 1/r³)',
     open(ctx) {
-      const H = ctx.C.hunt, S = ctx.S, SC = 20; if (!S.samples) { S.samples = []; S.cleared = []; S.sub = false; }
+      const H = ctx.C.hunt, S = ctx.S, SC = 20; if (!S.samples) S.samples = []; if (!S.cleared) S.cleared = [];
+      const mags = () => S.samples.filter(q => q.kind !== 'fil'), fils = () => S.samples.filter(q => q.kind === 'fil');
       const cv = UI.canvas(ctx.left, 760, 460), g = cv.getContext('2d'); let sel = null;
-      const X = x => (x + 19) * SC, Y = z => (z + 14) * SC, inRoom = (x, z) => LAB.ROOMS.some(r => x > r.x1 && x < r.x2 && z > r.z1 && z < r.z2);
+      const X = x => (x + 19) * SC, Y = z => (z + 14) * SC;
       const read = (x, z) => { const b = PHYS.field(H.sources, x, z); if (S.sub && !ctx.ap) { const d = PHYS.field(H.decoys, x, z); b.bx -= d.bx; b.bz -= d.bz; } return b; };
       function panel() {
         const dec = H.decoys.length ? '<table class="kv small"><tr><td><b>Known source</b></td><td>pos (E, S) m</td><td>m (E, S) A·m²</td></tr>' + H.decoys.map(d => `<tr><td>${d.id}</td><td>${d.x}, ${d.z}</td><td>${d.mx}, ${d.mz}</td></tr>`).join('') + '</table>' : '<p class="note">No decoys.</p>';
         ctx.right.innerHTML = `
-          <p class="brief">Find the hidden magnet. Click the map to measure.</p>
-          ${dec}<div class="row">${ctx.ap ? '' : '<button id="sGrid">Grid sweep</button><button id="sSub">' + (S.sub ? '☑' : '☐') + ' Subtract known</button>'}<button id="sClr">Clear</button></div>
-          <p class="note">${ctx.ap ? 'AP mode: no arrows. Use the numeric readings and B = (μ₀/4π)[3(m·r̂)r̂ − m]/r³ to subtract each known source by hand. (μ₀/4π = 0.1 µT·m³ per A·m²)' : 'Arrows grow near the magnet.'}</p>
+          <p class="brief">Find the hidden magnet. This map only shows what <b>you</b> measured out in the lab.</p>
+          <div class="read">📍 ${mags().length} magnetometer reading${mags().length === 1 ? '' : 's'} · 🧲 ${fils().length} filing patch${fils().length === 1 ? '' : 'es'}</div>
+          ${S.samples.length ? '' : '<p class="note warn">No data yet. Go out with the <b>magnetometer [1]</b> and <b>click</b> to log readings, or spray <b>filings [2]</b> on the floor — they appear here.</p>'}
+          ${dec}${ctx.ap ? '' : '<div class="row"><button id="sSub">' + (S.sub ? '☑' : '☐') + ' Subtract known</button></div>'}
+          <p class="note">${ctx.ap ? 'AP mode: no arrows. Use the numeric readings and B = (μ₀/4π)[3(m·r̂)r̂ − m]/r³ to subtract each known source by hand. (μ₀/4π = 0.1 µT·m³ per A·m²)' : 'Coloured arrows = your readings (longer = stronger). Grey lines = filings (direction only).'}</p>
           <div id="sList" class="log"></div><div class="read" id="sSel">Click a panel marker (P1–P8) to select it.</div>
           <button class="go" id="sGo" disabled>Breach selected panel</button><div class="status" id="sStat"></div>`;
         const $ = id => ctx.right.querySelector('#' + id);
-        if (!ctx.ap) { $('sGrid').onclick = () => { for (let x = -17; x <= 17; x += 2) for (let z = -12; z <= 6; z += 2) if (inRoom(x, z) && S.samples.length < 400) S.samples.push({ x, z }); draw(); };
-          $('sSub').onclick = () => { S.sub = !S.sub; panel(); draw(); }; }
-        $('sClr').onclick = () => { S.samples = []; list(); draw(); };
+        if (!ctx.ap) $('sSub').onclick = () => { S.sub = !S.sub; panel(); draw(); };
         $('sGo').onclick = () => {
           if (!sel || S.done) return;
           if (sel.id === H.target) { S.done = true; UI.status($('sStat'), 'Found it behind ' + sel.id + '!', 'ok'); ctx.solve(['Field survey: after subtracting known equipment, the residual dipole source sits behind panel ' + sel.id + ' (' + sel.where + ').']); }
@@ -160,11 +161,10 @@
         };
         list();
       }
-      function list() { const el = ctx.right.querySelector('#sList'); if (el) el.innerHTML = S.samples.slice(-7).reverse().map(s => { const b = read(s.x, s.z); return `<div>(${s.x.toFixed(1)}, ${s.z.toFixed(1)}) → B<sub>E</sub> ${b.bx.toFixed(2)}, B<sub>S</sub> ${b.bz.toFixed(2)} µT</div>`; }).join(''); }
+      function list() { const el = ctx.right.querySelector('#sList'); if (el) el.innerHTML = mags().slice(-7).reverse().map(s => { const b = read(s.x, s.z); return `<div>(${s.x.toFixed(1)}, ${s.z.toFixed(1)}) → B<sub>E</sub> ${b.bx.toFixed(2)}, B<sub>S</sub> ${b.bz.toFixed(2)} µT</div>`; }).join(''); }
       cv.onclick = e => {
         const p = UI.pos(e, cv), hit = LAB.PANELS.find(q => Math.hypot(X(q.x) - p.x, Y(q.z) - p.y) < 13);
         if (hit) { if (!S.cleared.includes(hit.id)) { sel = hit; ctx.right.querySelector('#sSel').innerHTML = 'Selected <b>' + hit.id + '</b> — ' + hit.where; ctx.right.querySelector('#sGo').disabled = !!S.done; } }
-        else { const x = p.x / SC - 19, z = p.y / SC - 14; if (S.samples.length < 400) S.samples.push({ x, z }); list(); }
         draw();
       };
       function draw() {
@@ -175,7 +175,11 @@
           g.fillStyle = '#33444e'; g.font = '11px ' + FONT; g.textAlign = 'center'; g.fillText(r.name.toUpperCase(), X((r.x1 + r.x2) / 2), Y(r.z1) + 14); });
         g.fillStyle = '#111b21'; [[0, -7, 1], [10, 0, 0], [-10, 0, 0]].forEach(d => d[2] ? g.fillRect(X(d[0] - 1), Y(d[1]) - 3, 2 * SC, 6) : g.fillRect(X(d[0]) - 3, Y(d[1] - 1), 6, 2 * SC));
         H.decoys.forEach(d => { g.fillStyle = '#ff8a3a'; g.fillRect(X(d.x) - 7, Y(d.z) - 7, 14, 14); UI.arrow(g, X(d.x), Y(d.z), d.mx / d.m * 20, d.mz / d.m * 20, '#ffd0a0', 2); g.font = '10px ' + FONT; g.textAlign = 'center'; g.fillStyle = '#ffb070'; g.fillText(d.id, X(d.x), Y(d.z) + 20); });
-        S.samples.forEach(s => {
+        fils().forEach(s => { // iron filings: direction only, the real (un-subtracted) field
+          for (let i = 0; i < 9; i++) { const a = i * 2.4, r = i ? 0.35 + 0.11 * i : 0, x = s.x + Math.cos(a) * r, z = s.z + Math.sin(a) * r, b = PHYS.field(H.sources, x, z), m = Math.hypot(b.bx, b.bz) || 1e-9;
+            g.strokeStyle = 'rgba(200,210,215,.75)'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(X(x) - b.bx / m * 6, Y(z) - b.bz / m * 6); g.lineTo(X(x) + b.bx / m * 6, Y(z) + b.bz / m * 6); g.stroke(); }
+        });
+        mags().forEach(s => {
           if (ctx.ap) { g.fillStyle = COL.cyan; g.fillRect(X(s.x) - 2, Y(s.z) - 2, 4, 4); return; }
           const b = read(s.x, s.z), m = Math.hypot(b.bx, b.bz) || 1e-9, l = Math.min(26, 5 + 9 * Math.log10(1 + m));
           UI.arrow(g, X(s.x) - b.bx / m * l / 2, Y(s.z) - b.bz / m * l / 2, b.bx / m * l, b.bz / m * l, 'hsl(' + Math.max(0, 170 - 55 * Math.log10(1 + m)) + ',85%,62%)', 1.6);

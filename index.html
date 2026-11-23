@@ -27,6 +27,7 @@
     <label class="check"><input id="guide" type="checkbox"> <span><b>Guide mode</b> — arrows &amp; tips</span></label>
     <label class="check"><input id="ap" type="checkbox"> <span><b>AP Exam Mode</b> — calculate by hand</span></label>
     <label class="check"><input id="hq" type="checkbox" checked> <span><b>High detail</b> — untick if laggy</span></label>
+    <label class="check"><input id="snd" type="checkbox" checked> <span><b>Sound</b> — lab ambience (M toggles)</span></label>
   </section>
   <footer class="foot">WASD move · E inspect · 1/2/3 tools · Tab case board</footer>
 </main>
@@ -50,8 +51,12 @@
     <div id="toasts"></div>
   </div>
   <div id="overlay" class="hide"><div id="sheet"></div></div>
+  <div id="cine" class="hide"><div class="cbar top"></div><div class="cbar bot"></div>
+    <div class="ccap"><div class="ct"></div><div class="cs"></div></div><div class="cfade"></div>
+    <button id="cineSkip" type="button">Skip ▸ <span>Space</span></button></div>
 </div>
 
+<div id="buddy" class="hide"></div>
 <div id="nogl" class="hide">The 3D engine (three.js) failed to load. This page fetches it from cdnjs — check your internet connection and reload.</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
@@ -59,7 +64,9 @@
 <script src="js/world.js"></script>
 <script src="js/puzzles.js"></script>
 <script src="js/puzzles2.js"></script>
+<script src="js/flux.js"></script>
 <script src="js/tutorial.js"></script>
+<script src="js/audio.js"></script>
 <script src="js/main.js"></script>
 </body>
 </html>

@@ -8,9 +8,9 @@
 
   // ------------------------------------------------------------------ explainers
   const TOOLS = {
-    mag: { name: 'Magnetometer', key: '1', what: 'Measures field strength <b>B</b> (µT).', how: 'Bigger number = magnet nearby.' },
-    spray: { name: 'Iron-filing spray', key: '2', what: 'Shows field lines on the floor.', how: 'Look down and <b>click</b>.' },
-    wand: { name: 'Induction wand', key: '3', what: 'Detects hidden live wires.', how: 'Sweep along walls. Full bar = wire.' }
+    mag: { name: 'Magnetometer', key: '1', what: 'Measures field <b>B</b> (µT).', how: '<b>Click</b> to log a reading to the Survey map.' },
+    spray: { name: 'Iron-filing spray', key: '2', what: 'Shows field direction on the floor.', how: 'Look down, <b>click</b>. Also goes on the Survey map.' },
+    wand: { name: 'Induction wand', key: '3', what: 'Detects hidden live wires.', how: 'Follow the buzz along walls to trace the maglock wire.' }
   };
 
   const DEVICES = {
@@ -24,14 +24,14 @@
     survey: {
       what: 'Find the hidden magnet behind panel <b>P1–P8</b>.',
       physics: 'Fields add up. Closer = much stronger (B ∝ 1/r³).',
-      steps: ['Press <b>Grid sweep</b>.', 'Press <b>Subtract known</b> (if shown).', 'Pick the panel where arrows are biggest → <b>Breach</b>.']
+      steps: ['Map comes from <b>your</b> magnetometer clicks + filing sprays.', 'Press <b>Subtract known</b> (if shown).', 'Pick the panel where arrows are biggest → <b>Breach</b>. Not sure? Go log more readings there.']
     },
     ampere: {
       what: 'Find how the door lock was switched off.',
       physics: 'Loop around a wire → its current. Solenoid: B = μ₀nI.',
       steps: ['Drag a box around the red <b>MAGLOCK FEED</b>. Enter its current.',
         'Cancel it: I = n<sub>lock</sub>·I<sub>lock</sub> ÷ n<sub>sol</sub>, <b>Opposing</b>.',
-        'Find the wire with that same current.']
+        'Find the wire with that same current.', 'Trace it with the <b>wand [3]</b> to its outlet.']
     },
     eddy: {
       what: 'Find the sleeve that slowed the falling magnet.',
@@ -55,16 +55,16 @@
     const P = C.puzzles[id];
     if (id === 'faraday') {
       const lab = { insert: 'Plunge in', withdraw: 'Yank out', through: 'Drop through' }[P.motion];
-      return ['Look at the top graph only.', 'Pole: ' + P.pole + '.', 'Motion: ' + lab + '.', 'Speed: ' + P.v.toFixed(1) + ' m/s.'];
+      return ['Top graph above 0 → N. Below → S.', 'Pole: ' + P.pole + '.', 'Motion: ' + lab + '.', 'Speed: ' + P.v.toFixed(1) + ' m/s.'];
     }
     if (id === 'survey') {
       const pan = LAB.PANELS.find(p => p.id === C.hunt.target);
-      return ['Press Grid sweep.', C.hunt.decoys.length ? 'Press Subtract known.' : 'No decoys this case.', 'Look in: ' + pan.where.split('·')[0].trim() + '.', 'Breach ' + pan.id + '.'];
+      return ['Log magnetometer readings near every P marker.', C.hunt.decoys.length ? 'Press Subtract known.' : 'No decoys this case.', 'Look in: ' + pan.where.split('·')[0].trim() + '.', 'Breach ' + pan.id + '.'];
     }
     if (id === 'ampere') {
       const feed = P.wires.find(w => w.kind === 'feed'), tap = P.wires.find(w => w.id === P.tap);
       return ['Box only the red wire.', 'Feed: ' + Math.abs(feed.I).toFixed(1) + ' A, ' + (feed.I > 0 ? '⊙ out' : '⊗ in') + '.',
-        'Counter: ' + P.Ic.toFixed(2) + ' A, Opposing' + (P.drift ? ' (lower it as it drifts)' : '') + '.', 'Supply: ' + tap.tag + '.'];
+        (P.drift ? 'Counter: ' + P.nL + ' × ' + P.Il.toFixed(1) + ' × (drift %) ÷ ' + P.nC + ', Opposing. Re-check — the drift % keeps falling.' : 'Counter: ' + P.Ic.toFixed(2) + ' A, Opposing.'), 'Supply: ' + tap.tag + '.', 'Wand: start at this panel, follow the buzz.'];
     }
     if (id === 'eddy') {
       const m = LAB.MATS.find(x => x.id === P.mat);
@@ -136,20 +136,111 @@
       done: () => Math.hypot(World.player.x - T.start.x, World.player.z - T.start.z) > 2.2 });
     S.push({ id: 'tools', title: 'Try your three tools', text: () => 'Press ' + ['mag', 'spray', 'wand'].map(t => (T.tried[t] ? '✔' : '') + '<b>' + TOOLS[t].key + '</b>').join(' '),
       done: () => T.tried.mag && T.tried.spray && T.tried.wand });
-    C.def.puzzles.concat(['survey']).forEach(id => {
+    const nRead = () => ((C.state.survey || {}).samples || []).filter(q => q.kind !== 'fil').length, NEED = 8;
+    C.def.puzzles.forEach(id => {
       S.push({ id, station: id, title: T.name[id], text: () => T.near ? 'Press <b>E</b>.' : 'Follow the <b class="cy">arrows</b>.',
-        done: () => (C.state[id] || {}).solved });
+        done: () => (C.state[id] || {}).solved || (id === 'ampere' && (C.state.ampere || {}).stage === 4) });
+      if (id === 'ampere') S.push({ id: 'trace', title: 'Trace the wire', text: () => 'Press <b>3</b> (wand). Follow the buzz along the walls to an <b class="amb">outlet</b>.',
+        done: () => (C.state.ampere || {}).solved });
     });
+    S.push({ id: 'readings', title: 'Map the field', text: () => 'Press <b>1</b>, walk near the <b>P</b> panels and <b>click</b> to log readings (' + Math.min(nRead(), NEED) + '/' + NEED + ').',
+      done: () => nRead() >= NEED || (C.state.survey || {}).solved });
+    S.push({ id: 'survey', station: 'survey', title: T.name.survey, text: () => T.near ? 'Press <b>E</b>.' : 'Follow the <b class="cy">arrows</b>.',
+      done: () => (C.state.survey || {}).solved });
     S.push({ id: 'board', station: 'board', title: 'Solve the case', text: () => 'Press <b>Tab</b>.',
       done: () => G.won });
     return S;
   }
 
+
+  // ------------------------------------------------------------------ Flux, the floating detective sidekick (sprite + brain in flux.js)
+  const B = { el: null, sprite: null, text: '', hold: 0, stepT: 0, sheetT: 0, lastStep: -1, failT: 0, fails: 0, reveal: null, sheetId: null, cd: {}, adviceT: 0 };
+  const COACH = {
+    faraday: 'Look at the <b>top graph</b>. Above zero? Pick <b>N</b>. Below? Pick <b>S</b>.',
+    survey: 'These arrows are the readings <b>you</b> logged. Where are they biggest?',
+    ampere: 'Drag a box around the <b>red wire</b> only.',
+    eddy: 'Pick a sleeve and press <b>Drop</b>. Watch the time!',
+    massspec: 'Press <b>Fire</b> and see where the beam lands.',
+    board: 'Find the suspect whose logs match <b>all</b> your facts.'
+  };
+  const TOOL_LINES = { mag: 'Magnetometer! <b>Click</b> to log a reading — it goes on the Survey map.', spray: 'Filing spray! Look at the floor and <b>click</b>. The pattern goes on the map too.', wand: 'Induction wand! It buzzes near hidden live wires — you\'ll trace one later.' };
+  function buddyInit() {
+    if (B.el) return; B.el = $('buddy'); if (!B.el) return;
+    B.el.innerHTML = '<div class="bd-body"><canvas class="bd-cv"></canvas></div><div class="bd-bubble"><div class="bd-name">FLUX</div><div class="bd-text"></div></div>';
+    B.sprite = FluxSprite(B.el.querySelector('canvas'));
+    let last = performance.now();
+    (function loop(now) { const dt = Math.min(0.1, (now - last) / 1000); last = now; if (!B.el.classList.contains('hide')) B.sprite.draw(now / 1000, dt); requestAnimationFrame(loop); })(last);
+    new MutationObserver(ms => { // react to ✔ / ✘ status lines inside device screens
+      if (!T.on || !T.G.sheet) return; const seen = new Set();
+      ms.forEach(m => { const n = m.target.nodeType === 1 ? m.target : m.target.parentElement, st = n && n.closest && n.closest('.status'); if (st) seen.add(st); });
+      seen.forEach(st => { const txt = st.textContent.trim(); if (!txt) return; if (st.classList.contains('bad')) fail(); else if (st.classList.contains('ok')) say(pickOne(['Yes!! Great work, detective! 🎉', 'Nailed it! 🎉', 'Brilliant deduction! 🎉']), 5, 'wow'); });
+    }).observe($('sheet'), { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class'] });
+  }
+  const pickOne = a => a[Math.floor(Math.random() * a.length)];
+  function say(html, hold, mood) {
+    if (!B.el) return; B.hold = hold || 0;
+    B.el.classList.remove('wow', 'oops'); if (mood === 'wow' || mood === 'oops') B.el.classList.add(mood);
+    if (B.sprite) B.sprite.setMood(mood);
+    if (html === B.text) return; B.text = html; if (B.sprite) B.sprite.talk();
+    const t = B.el.querySelector('.bd-text'); t.innerHTML = html;
+    const bub = B.el.querySelector('.bd-bubble'); bub.classList.remove('bd-pop'); void bub.offsetWidth; bub.classList.add('bd-pop');
+  }
+  function advice(explicit) { return B.sheetId ? FluxBrain.advise(B.sheetId, T.G.C, explicit, $('sheet')) : null; }
+  function fail() {
+    const now = performance.now(); if (now - B.failT < 500) return; B.failT = now; B.fails++;
+    const a = advice(B.fails >= 2);
+    if (a) { say('Close! ' + a.text, 7, 'oops'); return; }
+    const h = B.reveal && B.reveal();
+    say(h ? 'Close! 💡 ' + esc(h) : 'So close! Compare carefully and try again.', 7, 'oops');
+  }
+  function aside(key, cooldown, html, hold, mood) { const now = performance.now() / 1000; if ((B.cd[key] || 0) > now) return false; B.cd[key] = now + cooldown; say(html, hold, mood); return true; }
+  function buddyTick(dt) {
+    if (!B.el) return;
+    const G = T.G, show = T.on && !T.hidden; B.el.classList.toggle('hide', !show); if (!show) return;
+    B.el.classList.toggle('insheet', !!G.sheet && G.sheet !== 'brief');
+    if (G.sheet) B.sheetT += dt; else B.sheetT = 0;
+    if (T.i !== B.lastStep) { B.lastStep = T.i; B.stepT = 0; } else if (!G.sheet) B.stepT += dt;
+    if (B.hold > 0) { B.hold -= dt; return; }
+    if (!G.sheet && worldAsides()) return;
+    let line = ambient(G), mood = '';
+    if (typeof line === 'object') { mood = line.mood; line = line.text; }
+    B.el.classList.remove('wow', 'oops'); say(line, 0, mood);
+  }
+  // things Flux notices while you walk around
+  function worldAsides() {
+    const s = cur(); if (!s || s.id === 'move') return false;
+    if (World.tool === 'mag') { const b = World.fieldHere(), m = Math.hypot(b.bx, b.bz); if (m > 25 && aside('mag', 45, 'Whoa — <b>' + m.toFixed(0) + ' µT</b>! A strong magnet is close by.', 4, 'wow')) return true; }
+    if (World.tool === 'wand' && World.wandHere() > 0.85 && aside('wand', 45, 'Hear that buzz? A <b>live wire</b> runs inside this wall!', 4, 'wow')) return true;
+    if (World.tool === 'spray' && World.sprayLeft === 0 && aside('spray', 999, 'Out of spray! Switch to the magnetometer with <b>1</b>.', 4)) return true;
+    return false;
+  }
+  function ambient(G) {
+    if (G.sheet === 'brief') return 'Hi! I\'m <b>Flux</b>, your detective sidekick. Press <b>Start</b> and I\'ll guide you!';
+    if (G.sheet === 'term' || G.sheet === 'board') {
+      if (B.sheetT < 3) return COACH[B.sheetId] || 'Let\'s look at this together.';
+      return advice(B.fails >= 2) || COACH[B.sheetId] || 'Read the steps at the top.';
+    }
+    const s = cur(); if (!s) return { text: 'Case closed! 🎉', mood: 'wow' };
+    const k = B.stepT > 45 ? 2 : B.stepT > 20 ? 1 : 0, pick = a => a[Math.min(k, a.length - 1)];
+    const near = World.nearest();
+    if (near && !near.active) return 'That one isn\'t part of this case — skip it.';
+    if (near && near.active && s.station && near.id !== s.station && near.id !== 'board' && !(T.G.C.state[near.id] || {}).solved) return 'You can open this one too, but the arrows lead to the <b>' + T.name[s.station] + '</b> first.';
+    const solved = T.steps.filter(x => x.station && x.id !== 'board' && x.done()).length, total = T.steps.filter(x => x.station && x.id !== 'board').length;
+    if (s.id === 'move') return pick(['Hi, I\'m <b>Flux</b>! Click the screen, then walk with <b>W A S D</b>.', 'Move the mouse to look around. <b>W</b> walks forward!', 'Just walk a few steps — any direction!']);
+    if (s.id === 'tools') return pick(['Let\'s try your gadgets! Press <b>1</b>, <b>2</b> and <b>3</b>.', 'They\'re the number keys on the top row: <b>1 2 3</b>.']);
+    if (s.id === 'readings') return pick(['The Survey Table only shows what <b>you</b> measure! Press <b>1</b> and <b>click</b> near the P panels.', 'Readings in every room help — the magnet could be anywhere.', 'Watch the µT number: when it jumps up, log lots of readings there!']);
+    if (s.id === 'trace') { const v = World.tool === 'wand' ? World.wandHere() : 0; return World.tool !== 'wand' ? 'Press <b>3</b> for the wand!' : v > 0.6 ? 'Buzzing! Keep following this wall… 🔊' : pick(['Start at the maglock panel by the blast door, then follow the buzz.', 'Bar dropped? Turn back — the wire went another way.']); }
+    if (s.id === 'board') return pick(['All ' + total + ' clues found! Press <b>Tab</b> to open the Case Board.', 'The <b>Tab</b> key is just left of Q.']);
+    if (T.near) return 'This is it! Press <b>E</b> to open the <b>' + T.name[s.station] + '</b>.';
+    return pick([(solved ? solved + ' of ' + total + ' clues done! ' : '') + 'Follow the <b class="cy">glowing arrows</b> to the <b class="amb">orange marker</b>!', 'Turn until the orange arrow (top-right) points <b>up</b>, then press <b>W</b>.', 'Keep going — follow the arrows on the floor!']);
+  }
+  function finish() { if (!T.on) return; T.i = T.steps.length; say('We cracked the case! 🎉 You\'re a natural, detective.', 8, 'wow'); B.el && B.el.classList.remove('insheet'); setTimeout(() => { if (!T.on || T.G.won) { B.el && B.el.classList.add('hide'); } }, 8000); stop(true); }
+
   function begin(G, names) {
     T.on = true; T.G = G; T.name = names; T.i = 0; T.tried = { mag: true }; T.hidden = false; T.start = { x: World.player.x, z: World.player.z }; T.lastP = null; T.pathT = 0;
-    buildGrid(); T.steps = build(G); $('tut').classList.remove('hide'); $('tutTool').classList.remove('hide'); render(); toolBox();
+    buildGrid(); T.steps = build(G); buddyInit(); B.lastStep = -1; B.hold = 0; $('tut').classList.remove('hide'); $('tutTool').classList.remove('hide'); render(); toolBox();
   }
-  function stop() { T.on = false; World.setGuide(null); ['tut', 'tutTool'].forEach(id => $(id) && $(id).classList.add('hide')); }
+  function stop(keepBuddy) { T.on = false; World.setGuide(null); if (!keepBuddy && B.el) B.el.classList.add('hide'); ['tut', 'tutTool'].forEach(id => $(id) && $(id).classList.add('hide')); }
   function toggle() { if (!T.on) return; T.hidden = !T.hidden; $('tut').classList.toggle('mini', T.hidden); $('tutTool').classList.toggle('hide', T.hidden); if (T.hidden) World.setGuide(null); else T.lastP = null; render(); }
 
   function cur() { return T.steps[T.i]; }
@@ -165,14 +256,16 @@
     const t = TOOLS[World.tool], el = $('tutTool'); if (!el || !t) return;
     el.innerHTML = `<b>${t.key} · ${t.name}</b> — ${t.what} <span class="tut-x">${t.how}</span>`;
   }
-  function onTool(t) { if (!T.on) return; T.tried[t] = true; toolBox(); if (cur() && cur().id === 'tools') render(); }
+  function onTool(t) { if (!T.on) return; T.tried[t] = true; toolBox(); if (!T.hidden) say(TOOL_LINES[t], 4); if (cur() && cur().id === 'tools') render(); }
 
   function frame(dt) {
     if (!T.on) return;
+    buddyTick(dt);
     const s = cur();
     if (s && s.done()) {
       T.i++; T.lastP = null; const n = cur();
       if (n && window.GAME_API) window.GAME_API.toast('✔ Next: ' + n.title);
+      if (n) say('Nice! ✔ Next up: <b>' + n.title + '</b>', 3, 'wow');
       render(); if (!n) { World.setGuide(null); return; }
     }
     const st = cur(); if (!st) return;
@@ -205,7 +298,7 @@
   // a device guide panel injected into a terminal / the case board
   function onSheet(id) {
     if (!T.on) return; const D = DEVICES[id], sheet = $('sheet'), head = sheet && sheet.querySelector('.sheet-h'); if (!D || !head) return;
-    const H = hints(id, T.G.C); let shown = 0;
+    const H = hints(id, T.G.C); let shown = 0; B.sheetId = id; B.sheetT = 0; B.hold = 0; B.fails = 0;
     const box = document.createElement('details'); box.className = 'tutdev'; box.open = true;
     box.innerHTML = `<summary>📘 How it works</summary>
       <div class="tutgrid"><div><p><b>${D.what}</b></p><p class="tut-tip">${D.physics}</p></div>
@@ -213,12 +306,14 @@
       <div class="hintrow"><button type="button" id="tutHint">Hint</button><ol id="tutHints"></ol></div></div></div>`;
     head.after(box);
     const b = box.querySelector('#tutHint');
-    b.onclick = () => { if (shown >= H.length) return; const li = document.createElement('li'); li.innerHTML = esc(H[shown++]); box.querySelector('#tutHints').appendChild(li); b.textContent = shown < H.length ? 'Another hint' : 'No more hints'; b.disabled = shown >= H.length; };
+    const reveal = () => { if (shown >= H.length) return null; const h = H[shown++], li = document.createElement('li'); li.innerHTML = esc(h); box.querySelector('#tutHints').appendChild(li); b.textContent = shown < H.length ? 'Another hint' : 'No more hints'; b.disabled = shown >= H.length; return h; };
+    b.onclick = () => { const h = reveal(); if (h) say('💡 ' + esc(h), 8); };
+    B.reveal = reveal;
   }
   function promptExtra(near) {
     if (!T.on || T.hidden || !near) return '';
     return near.active ? '' : '<div class="tut-p">Not used in this case</div>';
   }
 
-  window.Tutorial = { begin, stop, toggle, frame, onTool, onSheet, promptExtra, get on() { return T.on; }, _astar: (a, b, c, d) => (grid || buildGrid(), astar(a, b, c, d)) };
+  window.Tutorial = { begin, stop, finish, toggle, frame, onTool, onSheet, promptExtra, get on() { return T.on; }, _astar: (a, b, c, d) => (grid || buildGrid(), astar(a, b, c, d)) };
 })();

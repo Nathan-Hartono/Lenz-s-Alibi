@@ -19,6 +19,8 @@ The 3D engine (three.js r128) and the two web fonts load from a CDN, so the firs
 - a plain-language explainer for whichever handheld tool you are holding,
 - a foldable "how this device works" guide inside every terminal and the case board, with up to four optional hints (each more specific than the last).
 
+- **Flux**, a floating 3D horseshoe-magnet detective (`js/flux.js`), talks you through every step. Inside each device he reads your current settings and tells you what is wrong and why: a nudge first, then the exact fix after a second mistake.
+
 Press **H** in game to hide or show the guide.
 
 ## Controls
@@ -29,9 +31,23 @@ Press **H** in game to hide or show the guide.
 | Mouse (click the view first), ← → | look |
 | E | inspect equipment |
 | 1 / 2 / 3 | magnetometer / iron-filing spray / induction wand |
+| Click (with a tool held) | magnetometer: log a reading to the Survey map · spray: drop filings (also mapped) |
 | Tab | case board and accusation |
 | H | hide / show the tutorial guide |
+| M | sound on / off (also a Sound checkbox on the case menu) |
+| Space / Enter / Esc | skip the ending cutscene |
 | Esc | close a terminal, release the mouse |
+
+## Tools
+
+- **Magnetometer (1)**: shows B where you stand. Click to log a reading; the Field Survey Table only plots readings you logged (there is no auto-sweep), so you have to walk the lab to find the hidden magnet.
+- **Iron-filing spray (2)**: 14 cans. Each patch shows field direction on the floor and on the Survey map (direction only, no strength).
+- **Induction wand (3)**: buzzes near the live supply conduit. The last step of the Maglock Conduit Panel is to follow the buzz from the blast door to the bench outlet it feeds.
+
+## Ending cutscene and sound
+
+- A correct accusation plays a ~28 s in-engine cutscene before the verdict screen. It shows the Case Board ("CASE SOLVED"), then the hidden panel being unbolted and set aside. Behind it is a dark cavity (or a shaft for the floor panel), drawn through a stencil cut-out in the wall or floor, and the cryo pod slides out of it. Dr. Thorne steps out and shivers. The two-piece blast door then slides open onto a lit corridor, and two officers walk in, cuff the culprit and escort them out. The people are built from jointed parts (knees, elbows, faces, hair) and each suspect has their own look. It works for every panel position and can be skipped.
+- `js/audio.js` makes all sound with the Web Audio API (no audio files). A calm A-minor chord pad plays throughout. A soft heartbeat pulse and a gentle arpeggio grow as you verify clues, during field surges and in the cutscene. Underneath is a very quiet room tone, a low drone near the accelerator, footsteps and the wand hum. There is no crackle or hiss. The music is muffled while a terminal is open.
 
 ## Cases
 
@@ -49,8 +65,10 @@ Every case is built from the **seed** on the title screen: same case + same seed
 | `js/case.js` | seeded RNG, shared physics, lab layout, procedural case generator |
 | `js/world.js` | 3D lab, movement and collision, handheld tools |
 | `js/puzzles.js` | Ghost-Pulse Oscilloscope (Faraday/Lenz), Maglock Conduit Panel (Ampère/solenoid) |
+| `js/audio.js` | procedural soundtrack, soft lab ambience and sound effects |
 | `js/puzzles2.js` | Cryo-Shaft Drop Rig (eddy braking), Mass Spectrometer (Lorentz), Field Survey Table (superposition) |
 | `js/main.js` | menu, HUD, terminals, case board, accusation, instability events |
+| `js/flux.js` | Flux sidekick: 3D model and device-aware advice |
 | `js/tutorial.js` | guide mode: objective steps, floor-arrow path finding, tool/device explainers, hints |
 | `server.py` | local no-cache dev server |
 

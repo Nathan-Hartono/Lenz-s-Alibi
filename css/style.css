@@ -122,3 +122,43 @@ b.cy, .cy { color: var(--cyan); } b.amb, .amb { color: var(--amber); }
 .tut-tip { color: var(--dim); }
 .hintrow { margin-top: 6px; } .hintrow button { border-color: var(--amber); color: var(--amber); font-size: 12px; } .hintrow ol { margin-top: 6px; color: var(--amber); }
 @media (max-width: 900px) { .tutgrid { grid-template-columns: 1fr; } #tut { width: 280px; } }
+
+/* ---------- Flux, the floating sidekick ---------- */
+#buddy { position: fixed; right: 10px; top: 215px; z-index: 7; display: flex; flex-direction: row-reverse; align-items: flex-start; gap: 6px; pointer-events: none; }
+#buddy .bd-body { filter: drop-shadow(0 8px 14px rgba(74,168,255,.35)); }
+#buddy .bd-cv { display: block; width: 168px; height: 200px; }
+@keyframes bdfloat { 50% { transform: translateY(-10px) rotate(-3deg); } }
+#buddy .bd-eyes { transform-box: fill-box; transform-origin: center; animation: bdblink 4.5s infinite; }
+@keyframes bdblink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+#buddy .bd-jet { animation: bdjet 3.2s ease-in-out infinite; } @keyframes bdjet { 50% { opacity: .12; } }
+#buddy .bd-bubble { max-width: 270px; min-width: 150px; background: #f4ecd8; color: #1d160a; border-radius: 12px; padding: 7px 12px 9px; font-size: 14px; line-height: 1.45; position: relative; margin-top: 30px; box-shadow: 0 6px 20px rgba(0,0,0,.5); text-shadow: none; }
+#buddy .bd-bubble::after { content: ''; position: absolute; right: -8px; top: 16px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 9px solid #f4ecd8; }
+#buddy .bd-name { font: 600 10px var(--mono); letter-spacing: .16em; color: #a0601f; }
+#buddy .bd-text b { color: #000; } #buddy .bd-text b.cy { color: #0b7d71; } #buddy .bd-text b.amb { color: #b0600c; }
+#buddy .bd-pop { animation: bdpop .35s ease-out; } @keyframes bdpop { from { transform: scale(.85); opacity: .2; } }
+#buddy .m-wow, #buddy .m-oops { display: none; }
+#buddy.wow .m-smile, #buddy.oops .m-smile { display: none; } #buddy.wow .m-wow, #buddy.oops .m-oops { display: inline; }
+#buddy.wow .bd-body { animation: bdhop .55s ease-in-out 3; } @keyframes bdhop { 50% { transform: translateY(-20px) scale(1.05); } }
+#buddy.oops .bd-body { animation: bdshake .4s ease-in-out 2; } @keyframes bdshake { 25% { transform: rotate(-8deg); } 75% { transform: rotate(8deg); } }
+#buddy.insheet { top: auto; bottom: 10px; right: auto; left: 10px; flex-direction: row; align-items: flex-end; }
+#buddy.insheet .bd-bubble { margin: 0 0 54px; }
+#buddy.insheet .bd-cv { width: 126px; height: 150px; }
+#buddy .bd-body { transition: transform .08s linear; }
+#buddy.insheet .bd-bubble::after { right: auto; left: -8px; top: auto; bottom: 14px; border-left: 0; border-right: 9px solid #f4ecd8; }
+@media (max-width: 700px) { #buddy .bd-bubble { max-width: 170px; font-size: 12px; } }
+
+/* ---------- ending cutscene ---------- */
+body.cine #hud, body.cine #buddy { display: none !important; }
+#cine { position: fixed; inset: 0; z-index: 8; pointer-events: none; }
+#cine .cbar { position: absolute; left: 0; right: 0; height: 11vh; background: #000; animation: cbar .9s ease-out both; }
+#cine .cbar.top { top: 0; } #cine .cbar.bot { bottom: 0; animation-name: cbarb; }
+@keyframes cbar { from { transform: translateY(-100%); } } @keyframes cbarb { from { transform: translateY(100%); } }
+#cine .ccap { position: absolute; left: 0; right: 0; bottom: 13vh; text-align: center; opacity: 0; padding: 0 16px; text-shadow: 0 2px 12px #000, 0 0 2px #000; }
+#cine .ccap.in { animation: ccap 3.6s ease-out forwards; }
+@keyframes ccap { 0% { opacity: 0; transform: translateY(10px); letter-spacing: .5em; } 15% { opacity: 1; transform: none; letter-spacing: .18em; } 80% { opacity: 1; } 100% { opacity: .0; } }
+#cine .ct { font: 400 clamp(26px, 5vw, 54px) 'Special Elite', 'Courier New', monospace; color: #f4ecd8; letter-spacing: .18em; }
+#cine .cs { font: 500 clamp(13px, 1.6vw, 17px) var(--mono); color: #c9d6dc; margin: 6px auto 0; letter-spacing: .04em; max-width: min(760px, 72vw); line-height: 1.45; }
+#cine .cfade { position: absolute; inset: 0; background: #000; opacity: 0; transition: opacity .6s ease; }
+#cine .cfade.on { opacity: 1; }
+#cineSkip { position: absolute; right: 18px; bottom: calc(11vh + 12px); pointer-events: auto; background: rgba(0,0,0,.55); border: 1px solid #3a4a52; color: #9fb0b8; font: 500 12px var(--mono); padding: 6px 12px; cursor: pointer; }
+#cineSkip span { border: 1px solid #3a4a52; padding: 0 5px; margin-left: 4px; }
